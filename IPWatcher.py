@@ -1,8 +1,9 @@
 import requests
 import csv
 import os
-from datetime import datetime
-import sys  # Importamos sys para usar sys.exit()
+import sys
+from datetime import datetime, timedelta
+import argparse  # Para manejar parámetros de línea de comandos
 
 # Function to get the public IP and ASN information
 def get_public_ip_and_asn():
@@ -39,11 +40,67 @@ def save_log(ip, asn, year, start_date, end_date):
             writer.writerow(["Start Date", "End Date", "Public IP", "ASN"])
             writer.writerow([start_date, end_date, ip, asn])
 
+# Function to search for IPs on a given date (supporting intermediate ranges)
+def search_ip_by_date(date):
+    current_year = datetime.now().year
+    file_name = f"ip_log_{current_year}.csv"
+    
+    if os.path.exists(file_name):
+        found = False
+        # Convert the given date string to a datetime object
+        search_date = datetime.strptime(date, "%Y-%m-%d")
+        
+        # Define the start and end of the day (00:00:00 to 23:59:59)
+        start_of_day = search_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        end_of_day = search_date.replace(hour=23, minute=59, second=59, microsecond=999999)
+        
+        with open(file_name, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip the header
+            for row in reader:
+                start_date_str = row[0].strip()
+                end_date_str = row[1].strip()
+                ip = row[2].strip()
+                asn = row[3].strip()
+                
+                # Parse dates for comparison
+                start_date = datetime.strptime(start_date_str, "%Y-%m-%d %H:%M:%S")
+                if end_date_str:
+                    end_date = datetime.strptime(end_date_str, "%Y-%m-%d %H:%M:%S")
+                else:
+                    end_date = None  # No end date means the IP is still active
+                
+                # Check if the search date is in the range of start_date and end_date
+                # 1. The search date is after or equal to the start date
+                # 2. The search date is before or equal to the end date (if end date exists)
+                if (start_date <= end_of_day and end_date is None) or \
+                        (start_date <= end_of_day and (end_date is None or end_date >= start_of_day)):
+                    # We also need to check if the end of this range intersects with the search date
+                    if (start_date <= end_of_day and start_date >= start_of_day) or \
+                       (end_date and end_date <= end_of_day and end_date >= start_of_day):
+                        print(f"IP: {ip}, ASN: {asn}, Start Date: {start_date_str}, End Date: {end_date_str}")
+                        found = True
+        
+        if not found:
+            print(f"No IP found for the date: {date}")
+    else:
+        print("Log file not found.")
+
 # Main function to control the flow of the program
 def main():
-    # Get the current year to use in the file name
+    # Set up command-line argument parsing
+    parser = argparse.ArgumentParser(description="IP Logger with Date Search Functionality")
+    parser.add_argument('--search-date', type=str, help="Search for IP on a specific date (format: YYYY-MM-DD)")
+    
+    args = parser.parse_args()
+    
+    # If search-date parameter is provided, perform the search
+    if args.search_date:
+        search_ip_by_date(args.search_date)
+        return  # End the execution here if we are searching
+    
+    # If no search, continue with regular IP logging
     current_year = datetime.now().year
-    # Read the current IP from the file if it exists
     last_ip = None
     file_name = f"ip_log_{current_year}.csv"
     last_start_date = None
