@@ -86,20 +86,51 @@ def search_ip_by_date(date):
     else:
         print("Log file not found.")
 
+# Function to search for all records of a specific IP
+def search_ip(ip_search):
+    current_year = datetime.now().year
+    file_name = f"ip_log_{current_year}.csv"
+    
+    if os.path.exists(file_name):
+        found = False
+        with open(file_name, mode='r') as file:
+            reader = csv.reader(file)
+            next(reader)  # Skip the header
+            for row in reader:
+                start_date_str = row[0].strip()
+                end_date_str = row[1].strip()
+                ip = row[2].strip()
+                asn = row[3].strip()
+                
+                if ip_search == ip:
+                    print(f"IP: {ip}, ASN: {asn}, Start Date: {start_date_str}, End Date: {end_date_str}")
+                    found = True
+        
+        if not found:
+            print(f"No records found for IP: {ip_search}")
+    else:
+        print("Log file not found.")
+
 # Main function to control the flow of the program
 def main():
     # Set up command-line argument parsing
     parser = argparse.ArgumentParser(description="IP Logger with Date Search Functionality")
     parser.add_argument('--search-date', type=str, help="Search for IP on a specific date (format: YYYY-MM-DD)")
+    parser.add_argument('--search-ip', type=str, help="Search for all records of a specific IP")
     
     args = parser.parse_args()
     
-    # If search-date parameter is provided, perform the search
+    # If search-date parameter is provided, perform the search by date
     if args.search_date:
         search_ip_by_date(args.search_date)
-        return  # End the execution here if we are searching
+        return  # End the execution here if we are searching by date
     
-    # If no search, continue with regular IP logging
+    # If search-ip parameter is provided, perform the search by IP
+    if args.search_ip:
+        search_ip(args.search_ip)
+        return  # End the execution here if we are searching by IP
+    
+    # If no search parameters, continue with regular IP logging
     current_year = datetime.now().year
     last_ip = None
     file_name = f"ip_log_{current_year}.csv"
